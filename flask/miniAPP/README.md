@@ -1,1 +1,1 @@
-This is an example about Flask+
+This is an example about Flask+Weixin miniAPP
