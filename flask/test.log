@@ -1,0 +1,19 @@
+2018-09-05 07:27:54,084 - flask.app - WARNING - this is warning msg
+2018-09-05 07:28:35,741 - flask.app - WARNING - this is warning msg
+2018-09-05 07:28:41,234 - flask.app - WARNING - this is warning msg
+2018-09-05 07:30:32,370 - flask.app - INFO - this is a info msg
+2018-09-05 07:30:32,370 - flask.app - WARNING - this is warning msg
+ * Running on https://159.89.132.69:54321/ (Press CTRL+C to quit)
+this is a info msg
+this is warning msg
+221.122.91.66 - - [05/Sep/2018 07:36:29] "GET / HTTP/1.1" 200 -
+ * Running on https://159.89.132.69:54321/ (Press CTRL+C to quit)
+this is a info msg
+this is warning msg
+221.122.91.66 - - [05/Sep/2018 07:38:03] "GET / HTTP/1.1" 200 -
+ * Running on https://159.89.132.69:54321/ (Press CTRL+C to quit)
+2018-09-05 07:59:32,789 - INFO - _internal.py - _log - 88 -  * Running on https://159.89.132.69:54321/ (Press CTRL+C to quit)
+2018-09-05 08:02:50,455 - werkzeug - INFO -  * Running on https://159.89.132.69:54321/ (Press CTRL+C to quit)
+2018-09-05 08:03:14,985 - flask.app - INFO - this is a info msg
+2018-09-05 08:03:14,985 - flask.app - WARNING - this is warning msg
+2018-09-05 08:03:14,985 - werkzeug - INFO - 221.122.91.66 - - [05/Sep/2018 08:03:14] "GET / HTTP/1.1" 200 -
