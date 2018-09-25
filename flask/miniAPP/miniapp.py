@@ -135,7 +135,6 @@ def activation():
     	sql_cmd = '''SELECT id FROM shuai_test.miniapp_user_profile WHERE wechat_openid='%s' ''' % (str(openid))
         result = lib.mysql_connector.querydb(g_db, sql_cmd)
         id = result[0][0] if result else None
-        print "result query: ", id
         if id:
     	    sql_cmd = '''UPDATE shuai_test.miniapp_user_profile SET activation_code = '%s', LMP = '%s', activated = '%d' WHERE id='%d' ''' % (activation_code.encode('utf-8'), LMP.encode('utf-8'), 1, id)
             result = lib.mysql_connector.updatedb(g_db, sql_cmd)
@@ -143,7 +142,6 @@ def activation():
             if result: ret = 'true'
 
     elif request.method == 'GET':
-        ret = 'false'
         openid=request.args.get('openid')
         sql_cmd = '''SELECT activated FROM shuai_test.miniapp_user_profile where wechat_openid='%s' ''' % (str(openid))  
         result = lib.mysql_connector.querydb(g_db, sql_cmd)
@@ -210,15 +208,15 @@ if __name__ == "__main__":
     # set the log path
     logger = logging.getLogger()
     file_handler = logging.FileHandler('./test.log')
-    logging_format = logging.Formatter('%(asctime)s - %(name)s - %(thread)d - %(levelname)s - %(message)s')
+    #logging_format = logging.Formatter('%(asctime)s - %(name)s - %(thread)d - %(levelname)s - %(message)s')
+    logging_format = logging.Formatter('%(asctime)s %(levelname)s %(name)s Line:%(lineno)d - %(message)s')
     file_handler.setFormatter(logging_format)
     logger.setLevel(logging.INFO)
     logger.addHandler(file_handler)
 
-    print 'connecting db ...'
     g_db = lib.mysql_connector.connectdb()    # 连接MySQL数据库
 
-    print 'starting web service ...'
+    logger.info("Starting web service ...")
     #app.run(ssl_context=('cert.pem', 'key.pem'), host='0.0.0.0')
     app.run(host='0.0.0.0')
 

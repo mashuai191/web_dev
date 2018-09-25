@@ -2,13 +2,16 @@
 # coding=utf-8
 
 import mysql.connector
+import logging
 
 def connectdb():
-    print('连接到mysql服务器...')
+    logging.getLogger().info('Connecting to MySQL sever...')
     # 打开数据库连接
     # 用户名:hp, 密码:Hp12345.,用户名和密码需要改成你自己的mysql用户名和密码，并且要创建数据库TESTDB，并在TESTDB数据库中创建好表Student
     db = mysql.connector.connect(user="shuai_test", passwd="P@ssw0rd1234", host='159.89.132.69', database="shuai_test", use_unicode=True)
-    print('连接上了!')
+
+    logging.getLogger().info('Connected!')
+
     return db
 
 def createtable(db):
@@ -29,19 +32,6 @@ def insertdb(db, sql_cmd):
     # 使用cursor()方法获取操作游标 
     cursor = db.cursor()
 
-    # SQL 插入语句
-    #sql = """INSERT INTO Student
-    #     VALUES ('001', 'CZQ', 70),
-    #            ('002', 'LHQ', 80),
-    #            ('003', 'MQ', 90),
-    #            ('004', 'WH', 80),
-    #            ('005', 'HP', 70),
-    #            ('006', 'YF', 66),
-    #            ('007', 'TEST', 100)"""
-
-    #sql = "INSERT INTO Student(ID, Name, Grade) \
-    #    VALUES ('%s', '%s', '%d')" % \
-    #    ('001', 'HP', 60)
     try:
         # 执行sql语句
         cursor.execute(sql_cmd)
@@ -50,8 +40,8 @@ def insertdb(db, sql_cmd):
         
     except Exception, e:
         # Rollback in case there is any error
-        print 'Insert data fail!'
-        print e
+        logging.getLogger().info("Error: unable to insert data")
+        logging.getLogger().info(e)
         db.rollback()
         return False
     return True
@@ -71,8 +61,8 @@ def querydb(db, sql_cmd):
         results = cursor.fetchall()
         return results
     except Exception, e:
-        print e
-        print "Error: unable to fecth data"
+        logging.getLogger().info("Error: unable to fecth data")
+        logging.getLogger().info(e)
 
 def deletedb(db):
     # 使用cursor()方法获取操作游标 
@@ -87,7 +77,7 @@ def deletedb(db):
        # 提交修改
        db.commit()
     except:
-        print '删除数据失败!'
+        logging.getLogger().info("Error: unable to delete data")
         # 发生错误时回滚
         db.rollback()
 
@@ -105,7 +95,8 @@ def updatedb(db, sql_cmd):
         db.commit()
         return True
     except Exception, e:
-        print '更新数据失败!', e
+        logging.getLogger().info("Error: unable to update data")
+        logging.getLogger().info(e)
         # 发生错误时回滚
         db.rollback()
         return False
@@ -118,13 +109,10 @@ def main():
 
     createtable(db)     # 创建表
     insertdb(db)        # 插入数据
-    print '\n插入数据后:'
     querydb(db) 
     deletedb(db)        # 删除数据
-    print '\n删除数据后:'
     querydb(db)
     updatedb(db)        # 更新数据
-    print '\n更新数据后:'
     querydb(db)
 
     closedb(db)         # 关闭数据库
