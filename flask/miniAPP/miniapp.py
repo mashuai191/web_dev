@@ -126,20 +126,18 @@ def privacy():
 def activation():
     ret = 'false'
     if request.method == 'POST':
-    	if not request.json or not 'activation_code' in request.json or not 'full_name' or not 'openid' in request.json:
+    	if not request.json or not 'activation_code' in request.json or not 'LMP' or not 'openid' in request.json:
             abort(400)
-    	print request.json
 
     	openid = request.json['openid']
         activation_code  = request.json['activation_code']
-    	full_name = request.json['full_name']
-    	print activation_code.encode('utf-8'), full_name.encode('utf-8')
+    	LMP = request.json['LMP']
     	sql_cmd = '''SELECT id FROM shuai_test.miniapp_user_profile WHERE wechat_openid='%s' ''' % (str(openid))
         result = lib.mysql_connector.querydb(g_db, sql_cmd)
         id = result[0][0] if result else None
         print "result query: ", id
         if id:
-    	    sql_cmd = '''UPDATE shuai_test.miniapp_user_profile SET activation_code = '%s', full_name = '%s', activated = '%d' WHERE id='%d' ''' % (activation_code.encode('utf-8'),full_name.encode('utf-8'), 1, id)
+    	    sql_cmd = '''UPDATE shuai_test.miniapp_user_profile SET activation_code = '%s', LMP = '%s', activated = '%d' WHERE id='%d' ''' % (activation_code.encode('utf-8'), LMP.encode('utf-8'), 1, id)
             result = lib.mysql_connector.updatedb(g_db, sql_cmd)
             logger.info("sql_cmd=%s, result:%s", sql_cmd, result)
             if result: ret = 'true'
@@ -147,7 +145,6 @@ def activation():
     elif request.method == 'GET':
         ret = 'false'
         openid=request.args.get('openid')
-        print openid
         sql_cmd = '''SELECT activated FROM shuai_test.miniapp_user_profile where wechat_openid='%s' ''' % (str(openid))  
         result = lib.mysql_connector.querydb(g_db, sql_cmd)
         logger.info("sql_cmd=%s, result:%s", sql_cmd, result)
@@ -162,33 +159,30 @@ def weight():
     if request.method == 'POST':
     	if not request.json or not 'weight'in request.json or not 'openid' in request.json:
             abort(400)
-        print request.json
     	openid = request.json['openid']
         weight  = request.json['weight']
         for_date  = request.json['for_date']
         week_num = request.json['weekNum']
-        print 'weight', request.json, 'for_Date', for_date, type(for_date)
         # check if there is existing info for specific date
-    	sql_cmd = '''SELECT id, full_name FROM shuai_test.miniapp_user_profile WHERE wechat_openid='%s' ''' % (str(openid))
+    	sql_cmd = '''SELECT id FROM shuai_test.miniapp_user_profile WHERE wechat_openid='%s' ''' % (str(openid))
         result = lib.mysql_connector.querydb(g_db, sql_cmd)
-        print result
+        logger.info("sql_cmd=%s, result:%s", sql_cmd, result)
     	if result:
             id = result[0][0]
-            full_name = result[0][1]
             sql_cmd = '''SELECT id_weight FROM shuai_test.miniapp_weight_log WHERE user_profile_id='%s' AND for_date='%s'  ''' % (id, str(for_date))
             result_2 = lib.mysql_connector.querydb(g_db, sql_cmd)
-            print result_2
+            logger.info("sql_cmd=%s, result:%s", sql_cmd, result_2)
             id_weight = result_2[0][0] if result_2 else None
             if id_weight: 
             # if there is existing info, update weight
             #TODO: update weight for specific date
     	        sql_cmd = '''UPDATE shuai_test.miniapp_weight_log SET weight = '%d', for_date = '%s', week_num = '%d' WHERE id_weight=%d ''' % (int(weight), str(for_date), int(week_num), int(id_weight))
                 result = lib.mysql_connector.updatedb(g_db, sql_cmd)
-                print "result update ", sql_cmd, result
+                logger.info("sql_cmd=%s, result:%s", sql_cmd, result)
                 ret = 'true'
             # if there is no existing info, add weight
             else:
-                sql_cmd = '''INSERT INTO shuai_test.miniapp_weight_log (user_profile_id, full_name, weight, for_date, week_num) VALUES (%d, '%s', %d, '%s', %d)''' % (int(id), full_name, int(weight), str(for_date), int(week_num))
+                sql_cmd = '''INSERT INTO shuai_test.miniapp_weight_log (user_profile_id, weight, for_date, week_num) VALUES (%d,  %d, '%s', %d)''' % (int(id), int(weight), str(for_date), int(week_num))
                 ret = lib.mysql_connector.insertdb(g_db, sql_cmd)
                 if ret:
                     logger.info("insert succeed")
@@ -199,25 +193,19 @@ def weight():
             logger.error("user not existing!")
 
     elif request.method == 'GET':
-        ret = 'false'
         openid=request.args.get('openid')
-        print openid
-        print request.args
         sql_cmd = '''SELECT id FROM shuai_test.miniapp_user_profile where wechat_openid='%s' ''' % (str(openid))  
         result = lib.mysql_connector.querydb(g_db, sql_cmd)
-        print result
         # get the weekday list with long date format
         if result and result:
-            sql_cmd = '''SELECT for_date FROM shuai_test.miniapp_weight_log where user_profile_id='%d' ''' % (int(result[0][0]))  
+            sql_cmd = '''SELECT for_date, weight FROM shuai_test.miniapp_weight_log where user_profile_id='%d' ''' % (int(result[0][0]))  
             result = lib.mysql_connector.querydb(g_db, sql_cmd)
-            print result
+            logger.info("sql_cmd=%s, result:%s", sql_cmd, result)
             return jsonify({"result":result})
 
     return ret
 
 if __name__ == "__main__":
-    print 'connecting db ...'
-    g_db = lib.mysql_connector.connectdb()    # 连接MySQL数据库
 
     # set the log path
     logger = logging.getLogger()
@@ -227,8 +215,10 @@ if __name__ == "__main__":
     logger.setLevel(logging.INFO)
     logger.addHandler(file_handler)
 
+    print 'connecting db ...'
+    g_db = lib.mysql_connector.connectdb()    # 连接MySQL数据库
+
     print 'starting web service ...'
     #app.run(ssl_context=('cert.pem', 'key.pem'), host='0.0.0.0')
-
     app.run(host='0.0.0.0')
 
