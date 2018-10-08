@@ -2,6 +2,7 @@
 from flask import Flask, jsonify
 from flask import request
 from flask import abort
+import os
 import requests
 import logging
 from WXBizDataCrypt import WXBizDataCrypt
@@ -62,9 +63,9 @@ def on_login():
                 ret = lib.mysql_connector.insertdb(g_db, sql_cmd)
                 logger.info("sql_cmd=%s, result:%s", sql_cmd, ret)
                 if ret:
-                    logger.info("insert succeed")
+                    logger.info("user login successful!")
                 else:
-                    logger.error("insert failed")
+                    logger.error("user login failed!")
          
             ret = openid
         return ret
@@ -207,7 +208,15 @@ if __name__ == "__main__":
 
     # set the log path
     logger = logging.getLogger()
-    file_handler = logging.FileHandler('./test.log')
+    #log_path = '/var/log/'+ appId + '/'
+    log_path = './'
+    log_file = 'app.log' 
+    if not os.path.exists(log_path):
+        os.system(r"mkdir -p %s" % log_path)
+    os.system(r"touch %s" % log_path + log_file)
+    file_handler = logging.FileHandler(log_path + log_file)
+
+    #file_handler = logging.FileHandler('./test.log')
     #logging_format = logging.Formatter('%(asctime)s - %(name)s - %(thread)d - %(levelname)s - %(message)s')
     logging_format = logging.Formatter('%(asctime)s %(levelname)s %(name)s Line:%(lineno)d - %(message)s')
     file_handler.setFormatter(logging_format)
