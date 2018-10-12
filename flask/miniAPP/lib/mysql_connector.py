@@ -7,8 +7,10 @@ import logging
 def connectdb():
     logging.getLogger().info('Connecting to MySQL sever...')
     # 打开数据库连接
-    # 用户名:hp, 密码:Hp12345.,用户名和密码需要改成你自己的mysql用户名和密码，并且要创建数据库TESTDB，并在TESTDB数据库中创建好表Student
+    # dev env
     db = mysql.connector.connect(user="shuai_test", passwd="P@ssw0rd1234", host='159.89.132.69', database="shuai_test", use_unicode=True)
+    # production env
+    #db = mysql.connector.connect(user="root", passwd="Philips@123", host='rm-uf6s5852kgoy3842v.mysql.rds.aliyuncs.com', database="shuai_test", use_unicode=True)
 
     logging.getLogger().info('Connected!')
 

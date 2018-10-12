@@ -40,7 +40,6 @@ def on_login():
         url = 'https://api.weixin.qq.com/sns/jscode2session'
     
         r = requests.get(url=url, params=payload)
-    
 
         if (u'errcode' in r.json().keys()):
             logger.error('%s', r.text)
@@ -64,10 +63,10 @@ def on_login():
                 logger.info("sql_cmd=%s, result:%s", sql_cmd, ret)
                 if ret:
                     logger.info("user login successful!")
+                    ret = openid
                 else:
                     logger.error("user login failed!")
-         
-            ret = openid
+                    ret = 'false'
         return ret
     elif request.method == 'GET':
         return 'Why GET request'
@@ -106,11 +105,20 @@ def privacy():
         #TODO: store agree status and user openid into DB
         openid = request.json['openid']
         agreed  = request.json['agreed']
-        sql_cmd = '''INSERT INTO shuai_test.miniapp_user_profile (wechat_openid, privacy_agreed) VALUES ('%s', %d)''' % (str(openid), int(agreed))
-        result = lib.mysql_connector.insertdb(g_db, sql_cmd)
+        sql_cmd = '''SELECT 1 FROM shuai_test.miniapp_user_profile where wechat_openid='%s' limit 1''' % (str(openid))  
+        result = lib.mysql_connector.querydb(g_db, sql_cmd)
         logger.info("sql_cmd=%s, result:%s", sql_cmd, result)
-        if result:
-            ret = 'true'
+        if result and result[0][0] == 1:
+    	    sql_cmd = '''UPDATE shuai_test.miniapp_user_profile SET privacy_agreed = '%s' WHERE wechat_openid='%s' ''' % (1, str(openid))
+            result = lib.mysql_connector.updatedb(g_db, sql_cmd)
+            logger.info("sql_cmd=%s, result:%s", sql_cmd, result)
+            if result: ret = 'true'
+        else:
+            sql_cmd = '''INSERT INTO shuai_test.miniapp_user_profile (wechat_openid, privacy_agreed) VALUES ('%s', %d)''' % (str(openid), int(agreed))
+            result = lib.mysql_connector.insertdb(g_db, sql_cmd)
+            logger.info("sql_cmd=%s, result:%s", sql_cmd, result)
+            if result:
+                ret = 'true'
         return ret
     elif request.method == 'GET':
         ret = 'false'
@@ -209,7 +217,7 @@ if __name__ == "__main__":
     # set the log path
     logger = logging.getLogger()
     #log_path = '/var/log/'+ appId + '/'
-    log_path = './'
+    log_path = '/var/log/'
     log_file = 'app.log' 
     if not os.path.exists(log_path):
         os.system(r"mkdir -p %s" % log_path)
