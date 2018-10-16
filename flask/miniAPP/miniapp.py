@@ -1,16 +1,58 @@
 #coding:utf-8
-from flask import Flask, jsonify
-from flask import request
-from flask import abort
+from flask import Flask, abort, request, jsonify, g
 import os
 import requests
 import logging
 from WXBizDataCrypt import WXBizDataCrypt
+from flask_sqlalchemy import SQLAlchemy
+from flask_httpauth import HTTPBasicAuth
+
+from itsdangerous import (TimedJSONWebSignatureSerializer
+                          as Serializer, BadSignature, SignatureExpired)
 
 import lib.mysql_connector
 
 app = Flask(__name__)
 g_db = None
+
+app.config['SECRET_KEY'] = 'the quick brown fox jumps over the lazy dog'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://shuai_test:P@ssw0rd1234@159.89.132.69:3306/shuai_test?charset=utf8'
+app.config['SQLALCHEMY_ECHO'] = False
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] =True
+app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
+
+# extensions
+db = SQLAlchemy(app)
+auth = HTTPBasicAuth()
+
+class MiniappUserProfile(db.Model):
+    """
+    eg. fields: id, title
+    """
+    __tablename__ = 'miniapp_user_profile'
+    #__table_args__ = {'autoload': True, 'schema': 'data', 'autoload_with': db.engine}
+    __table_args__ = {'autoload': True, 'autoload_with': db.engine}
+
+    def verify_password(self, password):
+        #return pwd_context.verify(password, self.password_hash)
+        return "not used password yet"
+
+    def generate_auth_token(self, expiration=600):
+        s = Serializer(app.config['SECRET_KEY'], expires_in=expiration)
+        return s.dumps({'openid': self.wechat_openid})
+
+    @staticmethod
+    def verify_auth_token(token):
+        s = Serializer(app.config['SECRET_KEY'])
+        try:
+            data = s.loads(token)
+        except SignatureExpired:
+            return None    # valid token, but expired
+        except BadSignature:
+            return None    # invalid token
+        user = MiniappUserProfile.query.filter_by(wechat_openid=data['openid']).first()
+
+        return user
 
 # personal account: shuai.ma@philips.com
 #appId = 'wx7bc211dcd940abde' 
@@ -25,6 +67,30 @@ secret = 'ecec76ba7091fe78cdc95f098a80dc56'
 @app.route('/')
 def hello():
     return 'Hello, World'
+
+@auth.verify_password
+def verify_password(username_or_token, password):
+    
+    # first try to authenticate by token
+    #print request.headers
+    #print 'username:', auth.username()
+    #print 'data received :', username_or_token, password 
+    user = MiniappUserProfile.verify_auth_token(username_or_token)
+    print "token verify result ", user
+    if not user:
+        # try to authenticate with username/password
+        user = MiniappUserProfile.query.filter_by(wechat_openid=username_or_token).first()
+        #if not user or not user.verify_password(password):
+        if not user:
+            return False
+    g.user = user
+    return True
+
+@app.route('/token')
+@auth.login_required
+def get_auth_token():
+    token = g.user.generate_auth_token(600)
+    return jsonify({'token': token.decode('ascii'), 'duration': 600})
 
 @app.route('/onlogin', methods=['GET', 'POST'])
 def on_login():
@@ -59,14 +125,14 @@ def on_login():
                 if result: ret = 'true'
             else:
                 sql_cmd = '''INSERT INTO shuai_test.miniapp_session_key (wechat_openid, wechat_session_key) VALUES ('%s', '%s')''' % (str(openid), str(sessionKey))
-                ret = lib.mysql_connector.insertdb(g_db, sql_cmd)
-                logger.info("sql_cmd=%s, result:%s", sql_cmd, ret)
-                if ret:
+                result = lib.mysql_connector.insertdb(g_db, sql_cmd)
+                logger.info("sql_cmd=%s, result:%s", sql_cmd, result)
+                if result:
                     logger.info("user login successful!")
-                    ret = openid
                 else:
                     logger.error("user login failed!")
-                    ret = 'false'
+                    return 'false'
+            ret = openid
         return ret
     elif request.method == 'GET':
         return 'Why GET request'
@@ -161,6 +227,7 @@ def activation():
     return ret
         
 @app.route('/weight', methods=['GET', 'POST'])
+@auth.login_required
 def weight():
     ret = 'false'
     if request.method == 'POST':
@@ -231,9 +298,14 @@ if __name__ == "__main__":
     logger.setLevel(logging.INFO)
     logger.addHandler(file_handler)
 
+    print "query existing tables", MiniappUserProfile.query.all()
     g_db = lib.mysql_connector.connectdb()    # 连接MySQL数据库
 
     logger.info("Starting web service ...")
     #app.run(ssl_context=('cert.pem', 'key.pem'), host='0.0.0.0')
     app.run(host='0.0.0.0')
+
+
+
+
 
