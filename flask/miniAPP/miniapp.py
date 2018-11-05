@@ -1,5 +1,5 @@
 #coding:utf-8
-from flask import Flask, abort, request, jsonify, g
+from flask import Flask, abort, request, json, jsonify, g
 import os
 import requests
 import logging
@@ -11,12 +11,27 @@ from itsdangerous import (TimedJSONWebSignatureSerializer
                           as Serializer, BadSignature, SignatureExpired)
 
 import lib.mysql_connector
+import decimal
+
+# override the default json encoder
+
+class MyJSONEncoder(json.JSONEncoder):
+
+    def default(self, obj):
+        if isinstance(obj, decimal.Decimal):
+            # Convert decimal instances to strings.
+            return str(obj)
+        return super(MyJSONEncoder, self).default(obj)
 
 app = Flask(__name__)
 g_db = None
+app.json_encoder = MyJSONEncoder
 
 app.config['SECRET_KEY'] = 'the quick brown fox jumps over the lazy dog'
+#dev env
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://shuai_test:P@ssw0rd1234@159.89.132.69:3306/shuai_test?charset=utf8'
+#production env
+#app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://root:Philips@123@rm-uf6s5852kgoy3842v.mysql.rds.aliyuncs.com:3306/shuai_test?charset=utf8'
 app.config['SQLALCHEMY_ECHO'] = False
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] =True
 app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
@@ -24,6 +39,9 @@ app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
 # extensions
 db = SQLAlchemy(app)
 auth = HTTPBasicAuth()
+
+
+
 
 class MiniappUserProfile(db.Model):
     """
@@ -76,7 +94,6 @@ def verify_password(username_or_token, password):
     #print 'username:', auth.username()
     #print 'data received :', username_or_token, password 
     user = MiniappUserProfile.verify_auth_token(username_or_token)
-    print "token verify result ", user
     if not user:
         # try to authenticate with username/password
         user = MiniappUserProfile.query.filter_by(wechat_openid=username_or_token).first()
@@ -250,14 +267,15 @@ def weight():
             if id_weight: 
             # if there is existing info, update weight
             #TODO: update weight for specific date
-    	        sql_cmd = '''UPDATE shuai_test.miniapp_weight_log SET weight = '%d', for_date = '%s', week_num = '%d' WHERE id_weight=%d ''' % (int(weight), str(for_date), int(week_num), int(id_weight))
+    	        sql_cmd = '''UPDATE shuai_test.miniapp_weight_log SET weight = '%.1f', for_date = '%s', week_num = '%d' WHERE id_weight=%d ''' % (float(weight), str(for_date), int(week_num), int(id_weight))
                 result = lib.mysql_connector.updatedb(g_db, sql_cmd)
                 logger.info("sql_cmd=%s, result:%s", sql_cmd, result)
                 ret = 'true'
             # if there is no existing info, add weight
             else:
-                sql_cmd = '''INSERT INTO shuai_test.miniapp_weight_log (user_profile_id, weight, for_date, week_num) VALUES (%d,  %d, '%s', %d)''' % (int(id), int(weight), str(for_date), int(week_num))
+                sql_cmd = '''INSERT INTO shuai_test.miniapp_weight_log (user_profile_id, weight, for_date, week_num) VALUES (%d,  %.1f, '%s', %d)''' % (int(id), float(weight), str(for_date), int(week_num))
                 ret = lib.mysql_connector.insertdb(g_db, sql_cmd)
+                logger.info("sql_cmd=%s", sql_cmd)
                 if ret:
                     logger.info("insert succeed")
                     ret = 'true'
@@ -271,13 +289,14 @@ def weight():
         sql_cmd = '''SELECT id FROM shuai_test.miniapp_user_profile where wechat_openid='%s' ''' % (str(openid))  
         result = lib.mysql_connector.querydb(g_db, sql_cmd)
         # get the weekday list with long date format
-        if result and result:
+        if result and result[0]:
             sql_cmd = '''SELECT for_date, weight FROM shuai_test.miniapp_weight_log where user_profile_id='%d' ''' % (int(result[0][0]))  
             result = lib.mysql_connector.querydb(g_db, sql_cmd)
             logger.info("sql_cmd=%s, result:%s", sql_cmd, result)
             return jsonify({"result":result})
 
     return ret
+
 
 if __name__ == "__main__":
 
