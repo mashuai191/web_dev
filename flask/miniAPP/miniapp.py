@@ -13,6 +13,10 @@ from itsdangerous import (TimedJSONWebSignatureSerializer
 import lib.mysql_connector
 import decimal
 
+import sys
+reload(sys)
+sys.setdefaultencoding('utf-8')
+
 # override the default json encoder
 
 class MyJSONEncoder(json.JSONEncoder):
@@ -29,9 +33,9 @@ app.json_encoder = MyJSONEncoder
 
 app.config['SECRET_KEY'] = 'the quick brown fox jumps over the lazy dog'
 #dev env
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://shuai_test:P@ssw0rd1234@159.89.132.69:3306/shuai_test?charset=utf8'
+#app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://shuai_test:P@ssw0rd1234@159.89.132.69:3306/shuai_test?charset=utf8'
 #production env
-#app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://root:Philips@123@rm-uf6s5852kgoy3842v.mysql.rds.aliyuncs.com:3306/shuai_test?charset=utf8'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://root:Philips@123@rm-uf6s5852kgoy3842v.mysql.rds.aliyuncs.com:3306/shuai_test?charset=utf8'
 app.config['SQLALCHEMY_ECHO'] = False
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] =True
 app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
@@ -82,13 +86,26 @@ secret = 'ecec76ba7091fe78cdc95f098a80dc56'
 
 #secret = '96fa56effc51f901aa10c2da5cca4421'
 
+# check if input activation code is in code pool
+def getActivationCodeInCodePool(activation_code):
+    # 
+    ret = -1
+    #print activation_code, type(activation_code)
+    sql_cmd = '''SELECT id_user_base FROM shuai_test.miniapp_user_base where activation_code='%s' ''' % (str(activation_code))
+    result = lib.mysql_connector.querydb(g_db, sql_cmd)
+    logger.info("sql_cmd=%s, result:%s", sql_cmd, result)
+    if result and result[0][0]:
+        ret = result[0][0]
+
+    return ret
+
+
 @app.route('/')
 def hello():
     return 'Hello, World'
 
 @auth.verify_password
 def verify_password(username_or_token, password):
-    
     # first try to authenticate by token
     #print request.headers
     #print 'username:', auth.username()
@@ -228,10 +245,13 @@ def activation():
         result = lib.mysql_connector.querydb(g_db, sql_cmd)
         id = result[0][0] if result else None
         if id:
-    	    sql_cmd = '''UPDATE shuai_test.miniapp_user_profile SET activation_code = '%s', LMP = '%s', activated = '%d' WHERE id='%d' ''' % (activation_code.encode('utf-8'), LMP.encode('utf-8'), 1, id)
-            result = lib.mysql_connector.updatedb(g_db, sql_cmd)
-            logger.info("sql_cmd=%s, result:%s", sql_cmd, result)
-            if result: ret = 'true'
+            #check if the actiavation code is in pre-defined code pool
+            id_user_base = getActivationCodeInCodePool(activation_code.encode('utf-8'))
+            if id_user_base != -1:
+                sql_cmd = '''UPDATE shuai_test.miniapp_user_profile SET activation_code = '%s', activation_code_id = '%d',  LMP = '%s', activated = '%d' WHERE id='%d' ''' % (activation_code.encode('utf-8'), int(id_user_base), LMP.encode('utf-8'), 1, id)
+                result = lib.mysql_connector.updatedb(g_db, sql_cmd)
+                logger.info("sql_cmd=%s, result:%s", sql_cmd, result)
+                if result: ret = 'true'
 
     elif request.method == 'GET':
         openid=request.args.get('openid')
